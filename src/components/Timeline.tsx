@@ -46,22 +46,15 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [lastX, setLastX] = useState(0);
 
+  // State for time measurement
+  const [isMeasuring, setIsMeasuring] = useState(false);
+  const [measurementStartTime, setMeasurementStartTime] = useState<number | null>(null);
+  const [measurementEndTime, setMeasurementEndTime] = useState<number | null>(null);
+
 
   // Update adjusted times when zoomLevel changes.
   useEffect(() => {
     const currentCenterTime = (adjustedTimes.start + adjustedTimes.end) / 2;
-    // if(currentCenterTime < currentTime){
-    //   setAdjustedTimes({
-    //     start: currentCenterTime - timeRange * (2.0/3.0),
-    //     end: currentTime + timeRange  * (1.0/3.0),
-    //   });
-    // }
-    // else{
-    //   setAdjustedTimes({
-    //     start: currentTime - timeRange * (1.0/3.0),
-    //     end: currentCenterTime + timeRange * (2.0/3.0),
-    //   });
-    // }
     setAdjustedTimes({
       start: currentCenterTime - timeRange * 0.5,
       end: currentTime + timeRange  * 0.5,
@@ -150,10 +143,33 @@ export const Timeline: React.FC<TimelineProps> = ({
       ctx.moveTo(timeX, 0);
       ctx.lineTo(timeX, canvas.height);
       ctx.stroke();
+
+      // Draw measurement overlay
+      if (measurementStartTime !== null) {
+        const startX = ((measurementStartTime - adjustedTimes.start) / (adjustedTimes.end - adjustedTimes.start)) * canvas.width;
+        ctx.strokeStyle = '#f97316'; // Orange color for measurement start
+        ctx.beginPath();
+        ctx.moveTo(startX, 0);
+        ctx.lineTo(startX, canvas.height);
+        ctx.stroke();
+
+        if (measurementEndTime !== null) {
+          const endX = ((measurementEndTime - adjustedTimes.start) / (adjustedTimes.end - adjustedTimes.start)) * canvas.width;
+          ctx.strokeStyle = '#ea580c'; // Darker orange for measurement end
+          ctx.beginPath();
+          ctx.moveTo(endX, 0);
+          ctx.lineTo(endX, canvas.height);
+          ctx.stroke();
+
+          // Semitransparent background
+          ctx.fillStyle = 'rgba(250, 204, 153, 0.3)'; // Light orange semi-transparent
+          ctx.fillRect(Math.min(startX, endX), 0, Math.abs(endX - startX), canvas.height);
+        }
+      }
     };
 
     drawTimeline();
-  }, [displayedTopics, currentTime, adjustedTimes]); // Use displayedTopics here
+  }, [displayedTopics, currentTime, adjustedTimes, measurementStartTime, measurementEndTime]); // Added measurement states
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -161,8 +177,26 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const time = adjustedTimes.start + (x / canvas.width) * (adjustedTimes.end - adjustedTimes.start);
-    onTimeChange(time);
+    const clickedTime = adjustedTimes.start + (x / canvas.width) * (adjustedTimes.end - adjustedTimes.start);
+
+
+    if (e.shiftKey) {
+      if (!isMeasuring) {
+        setIsMeasuring(true);
+        setMeasurementStartTime(clickedTime);
+        setMeasurementEndTime(null); // Reset end time for new measurement
+      } else {
+        setIsMeasuring(false);
+        setMeasurementEndTime(clickedTime);
+      }
+    } else {
+      onTimeChange(clickedTime);
+      if(isMeasuring){
+        setIsMeasuring(false); // Cancel measurement if started and user clicks without shift
+        setMeasurementStartTime(null);
+        setMeasurementEndTime(null);
+      }
+    }
   };
 
   const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -214,6 +248,8 @@ export const Timeline: React.FC<TimelineProps> = ({
   const filteredUnselectedTopics = unselectedTopics.filter(topic =>
     topic.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const measurementDuration = (measurementStartTime !== null && measurementEndTime !== null) ? (measurementEndTime - measurementStartTime) : null;
 
   return (
     <div ref={containerRef} className="w-full h-full">
@@ -285,7 +321,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               <div className="text-gray-500 text-xs mt-1">No topics found.</div>
             )}
           </div>
-          
+
         ) : (
           <div className="flex flex-wrap gap-2">
             {unselectedTopics.map(topic => (
@@ -306,11 +342,20 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
         )}
       </div>
-      {/* Current Time Display */}
-      <div className="mt-4 pt-2 border-t border-gray-200">
-        <p className="text-s text-gray-500">
-          Current Time: <span className="font-medium text-gray-700">{new Date(currentTime * 1000).toISOString().substr(11, 12)}</span>
-        </p>
+      {/* Current Time Display and Measurement Display */}
+      <div className="mt-4 pt-2 border-t border-gray-200 flex justify-between">
+        <div>
+          <p className="text-s text-gray-500">
+            Current Time: <span className="font-medium text-gray-700">{new Date(currentTime * 1000).toISOString().substr(11, 12)}</span>
+          </p>
+        </div>
+        {measurementDuration !== null && (
+          <div>
+            <p className="text-s text-orange-500">
+              Time Interval: <span className="font-medium text-orange-700">{(measurementDuration).toFixed(3)} s</span>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
