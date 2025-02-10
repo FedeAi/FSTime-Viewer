@@ -38,8 +38,8 @@ module.exports = {
         name: '@electron-forge/publisher-github',
         config: {
           repository: {
-            owner: 'your-github-username',
-            name: 'fs-timeline-viewer', // Assuming your repo is named this
+            owner: 'FedeAi',
+            name: 'FSTime-Viewer', // Assuming your repo is named this
           },
           prerelease: false,
         },
