@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron'); // Added Menu
 const path = require('path');
 const isDev = require('electron-is-dev');
 const { loadDecompressHandlers } = require("@mcap/support");
@@ -30,6 +30,9 @@ function createWindow() {
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
+
+  // Remove default menu
+  Menu.setApplicationMenu(null);
 }
 
 app.whenReady().then(createWindow);
@@ -46,8 +49,13 @@ app.on('activate', () => {
   }
 });
 
+// Open external URL in default browser
+ipcMain.handle('open-external', async (event, url) => {
+  await shell.openExternal(url);
+});
+
 // MCAP file handling
-ipcMain.handle('parse-mcap', async (event, filePath) => {
+ipcMain.handle('parse-mcap', async (event, filePath, readHeaderStamp) => {
   try {
     const decompressHandlers = await loadDecompressHandlers();
     const fileHandle = await open(filePath, "r");
@@ -56,8 +64,6 @@ ipcMain.handle('parse-mcap', async (event, filePath) => {
       decompressHandlers,
     });
 
-
-
     // Get all topics and their schemas
     const channels = reader.channelsById; // map<Number, Channel>
     const topicMap = new Map();
@@ -65,34 +71,27 @@ ipcMain.handle('parse-mcap', async (event, filePath) => {
       topicMap.set(channel.id.toString(), channel);
     }
 
-    // // Map to store channel schemas
-    // console.log('Schemas:', reader.schemasById);
-    // console.log('SChemas data to utf8:', reader.schemasById.get(1).data.toString('utf8'));
-    // console.log('SChemas data to utf8:', new TextDecoder().decode(reader.schemasById.get(1).data));
-
     // Map channel id to schema definition
     const channel2SchemaDef = new Map();
-    for (const [id, schema] of reader.schemasById.entries()) {
-      const decoded = new TextDecoder().decode(schema.data);
-      const cleaned = decoded.replace(/(?<!=)\s\d\s*$/gm, ''); // remove trailing numbers not following a '='
-      const schemaDef = parse(cleaned);
-      channel2SchemaDef.set(id, schemaDef);
+    if (readHeaderStamp) {
+      for (const [id, schema] of reader.schemasById.entries()) {
+        const decoded = new TextDecoder().decode(schema.data);
+        const cleaned = decoded.replace(/(?<!=)\s\d\s*$/gm, ''); // remove trailing numbers not following a '='
+        const cleaned2 = cleaned.replace(/(?<!=)\s(true|false)\s*$/gm, ''); // Remove true false values not following a '='
+
+        const schemaDef = parse(cleaned2);
+        channel2SchemaDef.set(id, schemaDef);
+      }
     }
 
     // Map channel id to MessageReader
     const channel2MessageReader = new Map();
-    for (const [id, schemaDef] of channel2SchemaDef.entries()) {
-      channel2MessageReader.set(id, new MessageReader(schemaDef, { timeType: "sec,nanosec"} ));
+    if (readHeaderStamp) {
+      for (const [id, schemaDef] of channel2SchemaDef.entries()) {
+        channel2MessageReader.set(id, new MessageReader(schemaDef, { timeType: "sec,nanosec" }));
+      }
     }
 
-
-
-    // Print decoded schemas data
-    // for (const [id, schema] of reader.schemasById.entries()) {
-    //   const data = schema.data;
-    //   // decode data
-    //   const decodedData = 
-    // }
     // Process messages and organize by topic
     const messagesByTopic = new Map();
     let globalStartTime = Infinity;
@@ -110,24 +109,16 @@ ipcMain.handle('parse-mcap', async (event, filePath) => {
       // Extract timestamp and header stamp if present
       const timestamp = Number(message.logTime) / 1e9; // Convert nanoseconds to seconds
       let headerStamp;
-      try {
-        // console.log('Channel id:', message.channelId);
-        // console.log('Channel schema:', channel2SchemaDef.get(message.channelId));
-        // console.log('Message data:', message);
-        
-        const parsedMsg = channel2MessageReader.get(message.channelId).readMessage(message.data); // Renamed inner variable
-        if (parsedMsg.header && parsedMsg.header.stamp) {
-          headerStamp = parsedMsg.header.stamp.sec + parsedMsg.header.stamp.nanosec / 1e9;
+      if (readHeaderStamp) {
+        try {
+          const parsedMsg = channel2MessageReader.get(message.channelId).readMessage(message.data);
+          if (parsedMsg.header && parsedMsg.header.stamp) {
+            headerStamp = parsedMsg.header.stamp.sec + parsedMsg.header.stamp.nanosec / 1e9;
+          }
+        } catch (e) {
+          // Handle error
         }
-
-      } catch (e) {
-        // console.warn('Could not parse message data for header stamp');
-        // console.error(`Error parsing message on channel ${message.channelId}: ${e.message}`, e);
-
       }
-      console.log('Timestamp:', timestamp);
-      console.log('Header stamp:', headerStamp);
-      console.log('-------------------');
 
       const mcapMessage = {
         timestamp,

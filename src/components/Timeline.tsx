@@ -122,16 +122,30 @@ export const Timeline: React.FC<TimelineProps> = ({
         // Draw messages
         topic.messages.forEach(msg => {
           const x = ((msg.timestamp - adjustedTimes.start) / (adjustedTimes.end - adjustedTimes.start)) * canvas.width;
-          ctx.fillStyle = '#2563eb';
-          ctx.fillRect(x, y + 20, 2, 8);
+          const msgColor = '#2563eb'; // Base blue color
+
+          // Draw timestamp as rectangle
+          ctx.fillStyle = msgColor;
+          ctx.fillRect(x - 1, y + 20, 3, 8); // Slightly thicker rectangle
 
           if (msg.headerStamp) {
             const stampX = ((msg.headerStamp - adjustedTimes.start) / (adjustedTimes.end - adjustedTimes.start)) * canvas.width;
-            ctx.strokeStyle = '#2563eb';
+            const headerStampColor = '#1e40af'; // Darker blue for headerStamp
+
+            // Draw headerStamp as circle
+            ctx.fillStyle = headerStampColor;
+            ctx.beginPath();
+            ctx.arc(stampX, y + 24, 1, 0, 2 * Math.PI); // Small circle
+            ctx.fill();
+
+            // Draw connecting line (optional, can remove if shapes are clear enough)
+            ctx.strokeStyle = msgColor;
+            ctx.lineWidth = 0.5; // Thinner line
             ctx.beginPath();
             ctx.moveTo(x, y + 24);
             ctx.lineTo(stampX, y + 24);
             ctx.stroke();
+            ctx.lineWidth = 1; // Reset line width
           }
         });
       });
@@ -352,7 +366,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         {measurementDuration !== null && (
           <div>
             <p className="text-s text-orange-500">
-              Time Interval: <span className="font-medium text-orange-700">{(measurementDuration).toFixed(3)} s</span>
+              Time Interval: <span className="font-medium text-orange-700">{(measurementDuration * 1000).toFixed(0)} ms</span>
             </p>
           </div>
         )}

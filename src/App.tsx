@@ -19,20 +19,20 @@ function App() {
   const [timeRange, setTimeRange] = useState<{ start: number; end: number }>({ start: 0, end: 0 });
   const [loading, setLoading] = useState(false);
   const [hoveredMessage, setHoveredMessage] = useState<Message | null>(null);
+  const [readHeaderStamp, setReadHeaderStamp] = useState(true);
 
 
   const handleFileSelect = async (file: File) => {
     setLoading(true);
     try {
       // Get the file path from the File object
-      console.log(file);
       const filePath = (file as any).path;
       if (!filePath) {
         throw new Error('File path not available');
       }
 
-      // Send the file path to the main process for parsing
-      const result = await ipcRenderer.invoke('parse-mcap', filePath);
+      // Send the file path and readHeaderStamp option to the main process for parsing
+      const result = await ipcRenderer.invoke('parse-mcap', filePath, readHeaderStamp);
       
       setTopics(result.topics);
       setTimeRange(result.timeRange);
@@ -48,8 +48,18 @@ function App() {
     setCurrentTime(time);
   }, []);
 
+  const handleCloseMCAP = () => {
+    setTopics([]);
+    setCurrentTime(0);
+    setTimeRange({ start: 0, end: 0 });
+  };
+
+  const openLinkInBrowser = (url: string) => {
+    ipcRenderer.invoke('open-external', url);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 p-8 relative pb-24">
       <div className="max-w-6xl mx-auto">
         <header className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -66,13 +76,34 @@ function App() {
                 <p>Parsing MCAP file...</p>
               </div>
             ) : (
-              <FileUpload onFileSelect={handleFileSelect} />
+              <>
+                <FileUpload onFileSelect={handleFileSelect} />
+                <div className="mt-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox"
+                      checked={readHeaderStamp}
+                      onChange={() => setReadHeaderStamp(!readHeaderStamp)}
+                    />
+                    <span className="ml-2">Read Header Stamp</span>
+                  </label>
+                </div>
+              </>
             )}
           </div>
         ) : (
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Timeline</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Timeline</h2>
+                <button
+                  onClick={handleCloseMCAP}
+                  className="bg-red-500 text-white px-4 py-2 rounded-md"
+                >
+                  Close MCAP
+                </button>
+              </div>
               <Timeline
                 topics={topics}
                 currentTime={currentTime}
@@ -81,22 +112,21 @@ function App() {
                 endTime={timeRange.end}
               />
             </div>
-
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold mb-4">Current Message Data</h2>
-              <pre className="bg-gray-50 p-4 rounded-lg overflow-auto">
-                {JSON.stringify(
-                  topics
-                    .flatMap(t => t.messages)
-                    .find(m => m.timestamp === currentTime)?.data,
-                  null,
-                  2
-                )}
-              </pre>
-            </div>
           </div>
         )}
       </div>
+      <footer className="absolute bottom-0 left-0 w-full py-6 text-gray shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            <p className="text-sm">
+              &copy; {new Date().getFullYear()} MCAP Timeline Viewer. All rights reserved.
+            </p>
+            <p className="text-sm">
+              Developed with ❤️ by <button onClick={() => openLinkInBrowser('https://federicosarrocco.com')} className="text-blue-700 hover:underline transition duration-300">Federico Sarrocco</button>
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

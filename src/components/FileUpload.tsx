@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { useDropzone } from 'react-dropzone';
+import React, { useRef } from 'react';
+import Dropzone from 'dropzone';
 import { Upload } from 'lucide-react';
 
 interface FileUploadProps {
@@ -7,31 +7,35 @@ interface FileUploadProps {
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFileSelect }) => {
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      onFileSelect(acceptedFiles[0]);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (dropzoneRef.current) {
+      const dropzone = new Dropzone(dropzoneRef.current, {
+        url: '/',
+        autoProcessQueue: false,
+        acceptedFiles: '.mcap',
+        init: function () {
+          this.on('addedfile', (file) => {
+            onFileSelect(file);
+          });
+        },
+      });
+
+      return () => {
+        dropzone.destroy();
+      };
     }
   }, [onFileSelect]);
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: {
-      'application/octet-stream': ['.mcap']
-    }
-  });
-
   return (
     <div
-      {...getRootProps()}
-      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-        ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}`}
+      ref={dropzoneRef}
+      className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors border-gray-300 hover:border-blue-400"
     >
-      <input {...getInputProps()} />
       <Upload className="mx-auto h-12 w-12 text-gray-400" />
       <p className="mt-2 text-sm text-gray-600">
-        {isDragActive
-          ? 'Drop the MCAP file here'
-          : 'Drag and drop an MCAP file here, or click to select'}
+        Drag and drop an MCAP file here, or click to select
       </p>
     </div>
   );
