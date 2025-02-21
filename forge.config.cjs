@@ -1,3 +1,5 @@
+const { platform } = require('process');
+
 // forge.config.js
 module.exports = {
     packagerConfig: {
@@ -12,25 +14,21 @@ module.exports = {
         config: {
           name: 'FSTimelineViewer', // Application name in installer
         },
+        platforms: ['win32'],
       },
       {
         name: '@electron-forge/maker-zip',     // macOS and Linux ZIP
         platforms: ['darwin', 'linux'],
       },
       {
-        name: '@electron-forge/maker-dmg',     // macOS DMG
-        config: {
-          background: './assets/dmg-background.png', // Optional DMG background
-          icon: './assets/icons/dmg_icon.icns',      // Optional DMG specific icon
-        },
-      },
-      {
         name: '@electron-forge/maker-deb',     // Linux DEB
         config: {},
+        platforms: ['linux'],
       },
       {
         name: '@electron-forge/maker-rpm',     // Linux RPM
         config: {},
+        platforms: ['linux'],
       },
     ],
     publishers: [ // Optional GitHub Publisher
@@ -44,6 +42,19 @@ module.exports = {
           prerelease: false,
         },
       },
+       // Only include dmg maker if not running on Linux
+    ...(platform !== 'linux'
+      ? [
+          {
+            name: '@electron-forge/maker-dmg', // macOS DMG
+            config: {
+              background: './assets/dmg-background.png',
+              icon: './assets/icons/dmg_icon.icns',
+            },
+            platforms: ['darwin'],
+          },
+        ]
+      : []),
     ],
     plugins: [
       // ... your plugins

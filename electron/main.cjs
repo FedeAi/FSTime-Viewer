@@ -1,7 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron'); // Added Menu
 const path = require('path');
 const isDev = require('electron-is-dev');
-const { loadDecompressHandlers } = require("@mcap/support");
+// const { loadDecompressHandlers } = require("@mcap/support");
 const { FileHandleReadable } = require("@mcap/nodejs");
 const { McapIndexedReader, ReadableFile, McapStreamReader, TypedMcapRecords } = require("@mcap/core");
 const { parse, stringify } = require("@foxglove/rosmsg");
@@ -24,13 +24,18 @@ function createWindow() {
   mainWindow.loadURL(
     isDev
       ? 'http://localhost:5173'
-      : `file://${path.join(__dirname, '../dist/index.html')}`
+      : `file://${path.join(__dirname, '../index.html')}`
   );
 
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
-
+  // const indexPath = app.isPackaged
+  //   ? path.join(process.resourcesPath, 'app.asar', 'dist', 'index.html')
+  //   : path.join(__dirname, 'dist', 'index.html');
+  
+  // const indexPath = path.join(__dirname, '../index.html');
+  // mainWindow.loadFile(indexPath);
   // Remove default menu
   Menu.setApplicationMenu(null);
 }
@@ -57,11 +62,11 @@ ipcMain.handle('open-external', async (event, url) => {
 // MCAP file handling
 ipcMain.handle('parse-mcap', async (event, filePath, readHeaderStamp) => {
   try {
-    const decompressHandlers = await loadDecompressHandlers();
+    // const decompressHandlers = await loadDecompressHandlers();
     const fileHandle = await open(filePath, "r");
     const reader = await McapIndexedReader.Initialize({
       readable: new FileHandleReadable(fileHandle),
-      decompressHandlers,
+      // decompressHandlers,
     });
 
     // Get all topics and their schemas

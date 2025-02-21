@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"electron .\"",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "electron:forge:all": "electron-forge make --platform=linux --platform=win32 --platform=darwin",
+    "publish": "electron-forge publish"
   },
   "dependencies": {
     "@foxglove/rosmsg": "^5.0.4",
@@ -58,7 +60,16 @@
     "vite": "^5.4.2",
     "vite-plugin-electron": "^0.28.2"
   },
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "build": {
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [],
+    "asar": true
+  },
+  "author": "Federico Sarrocco",
+  "description": "FSTime Visualizer, visualize your ROS2 message's timestamp",
+  "license": "ISC"
 }
