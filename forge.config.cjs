@@ -1,4 +1,33 @@
-const { platform } = require('process');
+const { options } = require('dropzone');
+const { option } = require('framer-motion/client');
+const { platform, config } = require('process');
+
+
+async function cleanupEmptyFolders (folder, exclude) {
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  if (!(await fsp.stat(folder)).isDirectory()) return
+
+  const folderName = path.basename(folder)
+  if (exclude && exclude.includes(folderName)) {
+    return
+  }
+
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
+  let files = await fsp.readdir(folder)
+
+  if (files.length > 0) {
+    await Promise.all(files.map(file => cleanupEmptyFolders(path.join(folder, file), exclude)))
+    // Re-evaluate files; after deleting subfolders we may have an empty parent
+    // folder now.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    files = await fsp.readdir(folder)
+  }
+
+  if (files.length === 0) {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    await fsp.rmdir(folder)
+  }
+}
 
 // forge.config.js
 module.exports = {
@@ -6,30 +35,84 @@ module.exports = {
       asar: true,
       icon: './assets/icons/app_icon',
       appCategory: 'public.app-category.productivity', // Example category for macOS App Store
+      prune: true,
+      // afterPrune: [
+      //   async (buildPath, electronVersion, platform, arch) => {
+      //     // Do something after pruning
+      //     cleanupEmptyFolders(path.join(buildPath, 'node_modules'))
+      //     .then(() => callback())
+      //     .catch(error => callback(error))
+      //   }
+      // ],
+
+      ignore:[
+        '.commitlintrc.js',
+        '.editorconfig',
+        '.env.development',
+        '.env.example',
+        '.env.production',
+        '.eslintrc.js',
+        '.git',
+        '.gitignore',
+        '.husky',
+        '.idea',
+        '.yarn',
+        '.yarnrc.yml',
+        'assets',
+        'forge.config.js',
+        'jsconfig.json',
+        'package-lock.json',
+        'pnpm-lock.yaml',
+        'src',
+        'vite.preload-notify.config.mjs',
+        'vite.preload.config.mjs',
+        'vite.renderer-notify.config.mjs',
+        'vite.renderer.config.mjs',
+        'node_modules/fastify/test'
+      ].map(x => new RegExp('^/' + x)),
+
     },
+
+    
+
     rebuildConfig: {},
     makers: [
+      // {
+      //   name: '@electron-forge/maker-squirrel', // Windows Installer
+      //   config: {
+      //     name: 'FSTimelineViewer', // Application name in installer
+      //   },
+      //   platforms: ['win32'],
+      // },
+      // {
+      //   name: '@electron-forge/maker-zip',     // macOS and Linux ZIP
+      //   platforms: ['darwin', 'linux'],
+      // },
+      // {
+      //   name: '@electron-forge/maker-deb',     // Linux DEB
+      //   config: {},
+      //   platforms: ['linux'],
+      // },
+      // {
+      //   name: '@electron-forge/maker-rpm',     // Linux RPM
+      //   config: {},
+      //   platforms: ['linux'],
+      // },
       {
-        name: '@electron-forge/maker-squirrel', // Windows Installer
+        // https://www.electronforge.io/config/makers/flatpak
+        // sudo apt install flatpak-builder flatpak elfutils
+        // flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+        name: '@electron-forge/maker-flatpak',
         config: {
-          name: 'FSTimelineViewer', // Application name in installer
+          options: {
+            categories: [
+              'Utility',
+            ],
+          },
         },
-        platforms: ['win32'],
-      },
-      {
-        name: '@electron-forge/maker-zip',     // macOS and Linux ZIP
-        platforms: ['darwin', 'linux'],
-      },
-      {
-        name: '@electron-forge/maker-deb',     // Linux DEB
-        config: {},
         platforms: ['linux'],
-      },
-      {
-        name: '@electron-forge/maker-rpm',     // Linux RPM
-        config: {},
-        platforms: ['linux'],
-      },
+      }
     ],
     publishers: [ // Optional GitHub Publisher
       {
